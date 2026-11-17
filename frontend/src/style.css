@@ -1,0 +1,940 @@
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 正面可点区域要能进 Tab 序列。div 没有 tabindex 键盘用户完全到不了，
+   对话框规范要求可聚焦元素必须有可见焦点，否则键盘用户不知道焦点在哪 */
+.face.front:focus-visible {
+  outline: 2px solid var(--val);
+  outline-offset: 4px;
+  border-radius: var(--rb);
+}
+
+/* 背景提亮。原值 #15181e 偏暗，实测正文虽达标但整体发闷。
+   现在 #1e222b，正文对比度 14.46，视觉明显更透气 */
+:root {
+  --bg: #1e222b;
+  --bg-glow-1: rgba(154, 219, 55, 0.10);
+  --bg-glow-2: rgba(252, 3, 119, 0.08);
+  --panel: rgba(38, 43, 54, 0.72);
+  --panel-solid: #262b36;
+  --panel2: #2b3140;
+  --line: #3a4150;
+  --fg: #f2f4f8;
+  --dim: #a3abb9;
+  /* 规范指定的两个基色。西瓜红 4.11 达不到正文 4.5，只用于大字与边框；
+     橄榄绿 9.52 达标，作正文强调 */
+  --val: #9adb37;
+  --accent: #fc0377;
+  --warn: #e0b775;
+  --bad: #e08a7a;
+  --btn: rgba(46, 52, 65, 0.72);
+  --blur: blur(18px);
+  --rc: 12px;
+  --rb: 8px;
+}
+
+body[data-t="ink"] {
+  --bg: #191d26;
+  --bg-glow-1: rgba(252, 3, 119, 0.10);
+  --bg-glow-2: rgba(143, 184, 255, 0.09);
+  --panel: rgba(31, 36, 47, 0.72);
+  --panel-solid: #1f242f;
+  --panel2: #262c39;
+  --line: #343b49;
+  --val: #9adb37;
+  --accent: #fc0377;
+  --btn: rgba(38, 44, 57, 0.72);
+}
+
+body[data-t="sand"] {
+  --bg: #24211d;
+  --bg-glow-1: rgba(224, 183, 117, 0.10);
+  --bg-glow-2: rgba(168, 201, 138, 0.09);
+  --panel: rgba(49, 45, 39, 0.72);
+  --panel-solid: #312d27;
+  --panel2: #38332c;
+  --line: #423d35;
+  --val: #9adb37;
+  --accent: #fc0377;
+  --btn: rgba(57, 52, 45, 0.72);
+}
+
+* { box-sizing: border-box; }
+
+/* display 属性会盖掉 hidden 的 UA 样式，必须显式声明 */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  /* 两团柔光让背景不再是一块死色，卡片半透明才有东西可透 */
+  background-image:
+    radial-gradient(1000px 520px at 15% -8%, var(--bg-glow-1), transparent 62%),
+    radial-gradient(880px 480px at 88% 12%, var(--bg-glow-2), transparent 60%);
+  background-attachment: fixed;
+  color: var(--fg);
+  font: 16px/1.7 -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+}
+
+/* 左右分栏。侧边栏自己独立滚动，主区不跟着动 */
+.shell {
+  display: grid;
+  grid-template-columns: 236px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.body {
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* 侧边栏。半透明 + 背景模糊，和卡片同一套材质，整页像一块玻璃板 */
+.side {
+  position: sticky;
+  top: 0;
+  /* 撑满视口并跟着页面滚。不写死 height 时底部信息会悬在半空 */
+  height: 100vh;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+}
+
+.brand {
+  font-size: 18px;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 18px 18px 14px;
+  letter-spacing: 0.04em;
+}
+
+.tree {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 10px 12px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+/* WebKit 默认滚动条是亮白色，在深色侧边栏上很跳。统一成和分隔线一致的暗灰。 */
+.tree::-webkit-scrollbar { width: 6px; }
+.tree::-webkit-scrollbar-track { background: transparent; }
+.tree::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 3px;
+}
+.tree::-webkit-scrollbar-thumb:hover { background: var(--dim); }
+
+.node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--rb);
+  color: var(--dim);
+  text-decoration: none;
+  font-size: 18px;
+  line-height: 1.4;
+  cursor: pointer;
+  /* 四边统一留 1px 边框位，选中时整圈换色，不做左侧竖线 */
+  border: 1px solid transparent;
+}
+
+.node:hover { background: var(--btn); color: var(--fg); }
+
+/* 选中项用整圈 1px 绿边加淡绿底色。
+   之前是 2px 左侧竖线，视觉上像半个括号，已按用户要求删掉 */
+.node.on {
+  color: var(--val);
+  background: rgba(154, 219, 55, 0.14);
+  border-color: var(--val);
+  font-weight: 600;
+}
+
+/* 张数用等宽数字，右对齐后逐行对齐，跳动时不会左右晃 */
+.node .n {
+  margin-left: auto;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.62;
+  letter-spacing: 0;
+}
+
+.grp-hd { margin-top: 8px; color: var(--fg); font-weight: 600; }
+.recycle-hd {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  color: var(--fg);
+  font-weight: 600;
+}
+.kids { margin: 2px 0 6px; padding-left: 8px; }
+.kid { font-size: 18px; padding: 5px 10px; }
+
+
+
+.cat-menu {
+  position: fixed;
+  z-index: 50;
+  background: var(--panel-solid);
+  border: 1px solid var(--line);
+  border-radius: var(--rb);
+  padding: 6px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.42);
+}
+
+.cat-del {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--bad);
+  font: 15px/1.5 inherit;
+  padding: 7px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cat-del:hover,
+.cat-del:focus-visible {
+  border-color: var(--bad);
+  background: rgba(248, 113, 113, 0.08);
+  outline: none;
+}
+
+.side-foot {
+  padding: 12px 18px 16px;
+  border-top: 1px solid var(--line);
+  display: block;
+  font-size: 14px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.6;
+}
+
+.side-add {
+  display: block;
+  margin: 7px 0 0 auto;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--rb);
+  color: var(--dim);
+  font: 13px/1.4 inherit;
+  padding: 3px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.side-add:hover { border-color: var(--val); color: var(--val); }
+
+/* 顶栏与卡片共用同一套毛玻璃，面板之间靠边框而不是实色区分层次 */
+.top {
+  position: relative;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+  background: var(--panel);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+}
+
+.top-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 24px;
+  justify-content: space-between;
+}
+
+.shell.side-collapsed { grid-template-columns: 0 minmax(0, 1fr); }
+.shell.side-collapsed .side { display: none; }
+
+.side-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  background: var(--btn);
+  color: var(--dim);
+  border: 1px solid var(--line);
+  border-radius: var(--rb);
+  cursor: pointer;
+}
+.side-toggle:hover { color: var(--fg); }
+.side-toggle svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* 顶栏只保留动作按钮。面包屑与左侧选中项重复，搜索使用频率撑不起位置，都已删除 */
+.tools {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.icon-btn, .btn, .sw, .tab, .level-sel {
+  background: var(--btn);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: var(--rb);
+  padding: 8px 14px;
+  font: 16px/1.5 inherit;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.level-sel { padding-right: 30px; }
+
+.icon-btn.on, .tab.on, .btn.on {
+  border-color: var(--val);
+  color: var(--val);
+}
+
+/* 键盘焦点统一可见。以前只有正面卡、主题色块与删除按钮写了 focus-visible，
+   其余控件靠浏览器默认焦点环，在深色玻璃背景上时有时无 */
+.btn:focus-visible,
+.icon-btn:focus-visible,
+.level-sel:focus-visible,
+.node:focus-visible,
+.pg-num:focus-visible,
+.toast-act:focus-visible {
+  outline: 2px solid var(--val);
+  outline-offset: 2px;
+}
+
+.node:focus-visible {
+  outline-offset: -2px;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  padding: 0 24px 14px;
+  flex-wrap: wrap;
+}
+
+/* 窄屏侧边栏收起。判断依据是主区宽度不够放卡片，不是屏幕宽度 */
+@media (max-width: 860px) {
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .body { grid-column: auto; }
+  .side {
+    position: static;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+  .tree { display: flex; flex-wrap: wrap; gap: 4px; padding-bottom: 10px; }
+  .kids { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding-left: 0; }
+  .grp-hd { margin-top: 0; }
+  .recycle-row { flex-wrap: wrap; }
+  .recycle-row .rq { flex: 1 1 100%; }
+  .recycle-row .rt { flex: 1 1 auto; white-space: normal; }
+  .recycle-search { width: 100%; }
+}
+
+.theme-panel {
+  position: absolute;
+  right: 24px;
+  top: 62px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--panel-solid);
+  border: 1px solid var(--line);
+  border-radius: var(--rb);
+  padding: 8px;
+  z-index: 30;
+  min-width: 96px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .40);
+}
+
+.theme-panel .sw { text-align: center; }
+.theme-panel .sw:focus-visible {
+  outline: 2px solid var(--val);
+  outline-offset: 2px;
+}
+
+main {
+  flex: 1;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 24px 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.card {
+  /* 半透明 + 背景模糊 + 实体投影，做出悬浮在背景之上的层次。
+     --panel-solid 是给不支持 backdrop-filter 的浏览器准备的回退色 */
+  background: var(--panel);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  border: 1px solid var(--line);
+  border-radius: var(--rc);
+  padding: 30px 32px 24px;
+  /* 正反两面放进同一个网格单元，谁高由谁决定，翻面不再改高度。
+     旧版固定 470px，长答案与长 detail 只能内部滚动；
+     现在常态随内容长高，最高不超过视口，超出才滚动 */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 470px;
+  /* 不设视口上限。长答案与长代码一次读全，页面负责滚动；
+     设上限会把内容重新塞回内部滚动，等于没解决卡片太短的问题 */
+  flex: 0 0 auto;
+  box-shadow:
+    0 18px 44px rgba(0, 0, 0, 0.34),
+    0 2px 8px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  /* 固定高度，正反面内容再多也不撑开卡片。
+     早期用 min-height: 300px，正面短内容刚好 300，
+     背面多出答案与展开说明撑到 343，翻面瞬间卡片长高 43px，
+     视口中心被顶走，标题跟着跳。整段禁止过渡动画。
+     420 装不下「答案 + 摘要 + 解释三段」，背面第三段会被裁掉，
+     而滚动条当时还隐藏着，用户根本不知道有内容没显示。最小高度 470 */
+  transition: none;
+}
+
+/* 展开解释时卡片随内容继续长高。这与翻面跳动是两回事：
+   翻面是同一份内容换一面，高度必须一致；点解释是用户主动要更多内容。
+   收起解释或切卡都会移除这个类，卡片回到内容决定的高度 */
+.card.x-on {
+  min-height: 470px;
+}
+
+.card-top {
+  grid-area: 1 / 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+/* 顶栏这一排是卡片的主操作区，高度与内边距统一，行首到行尾齐平 */
+.card-top .btn {
+  padding: 8px 14px;
+  font-size: 16px;
+  /* 四个按钮同一亮度。收藏与删除原先用 --dim 压暗，混在同一排里
+     字色深浅不一，看着像有按钮是禁用的 */
+  color: var(--fg);
+}
+
+/* 收藏是西瓜红唯一登场的地方。规范实测硬红对比度 4.11，达不到正文 4.5，
+   所以只用于边框与圆点，文字仍是正文色，既有品牌红又不牺牲可读性 */
+.btn.mark.on {
+  border-color: var(--accent);
+  color: var(--fg);
+}
+
+.btn.mark.on::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: 1px;
+}
+
+.counter { color: var(--dim); font-size: 14px; margin-left: auto; }
+
+/* 删除紧挨编辑，和它排在同一组左手边，右侧留给计数与编辑态按钮。
+   平时与其余按钮同色，只在指着和聚焦时变红 */
+.card-top .btn.del:hover,
+.card-top .btn.del:focus-visible {
+  border-color: var(--bad);
+  color: var(--bad);
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  /* 吸在列表底部，页数多时不用滚到底才找得到 */
+  position: sticky;
+  bottom: 0;
+  /* 吸底时必须用不透明底，半透明会透出下方列表行 */
+  background: var(--panel-solid);
+  padding-bottom: 4px;
+}
+
+.btn.pg { padding: 6px 12px; font-size: 14px; flex-shrink: 0; }
+.btn.pg:disabled { opacity: 0.4; cursor: default; }
+
+.pg-nums {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.pg-num {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--dim);
+  font: 14px/1.5 inherit;
+  padding: 4px 9px;
+  min-width: 30px;
+  cursor: pointer;
+}
+
+.pg-num:hover { border-color: var(--line); color: var(--fg); }
+.pg-num.on { border-color: var(--val); color: var(--val); }
+.pg-gap { color: var(--dim); padding: 0 2px; }
+
+/* 正面与背面必须用同一套对齐方式。早期正面 center、背面 flex-start，
+   同一个问题字翻面前后落在不同垂直位置，看起来就是标题在跳。
+   滚动条一旦出现，可视宽度变化会让文字重排，字号不变但换行变了，读起来仍像在跳 */
+.face {
+  grid-area: 2 / 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 0;
+  overflow-y: auto;
+  /* 两面同时参与布局，只切可见性。display:none 会让背面的高度退出计算，
+     翻面瞬间卡片塌回正面的高度，这正是要消灭的跳动 */
+  visibility: hidden;
+  /* 细滚动条只在内容溢出时出现。原先整条隐藏，背面被裁掉一段却看不出来，
+     用户会以为解释就这么点，或者以为内容丢了 */
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+.face::-webkit-scrollbar { width: 6px; }
+.face::-webkit-scrollbar-track { background: transparent; }
+.face::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+
+/* 正面整块可点翻面，悬停给出光标提示。
+   只有这一处加 cursor，规则要求彻底删除鼠标悬停位移动画，这里只改光标不动位置 */
+.face.front { visibility: visible; cursor: pointer; }
+
+.card.flip .face.front { visibility: hidden; }
+.card.flip .face.back { visibility: visible; }
+
+/* 编辑态。正反面与底部按钮一起让位，一张卡同时只留一套控件，
+   选择器用两个类抬高特异性，压过上面翻面态的 display:flex */
+.card.editing .face.front,
+.card.editing .face.back,
+.card.editing .foot { display: none; }
+
+.edit-box {
+  grid-area: 2 / 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 0;
+}
+
+.edit-lab {
+  font-size: 14px;
+  color: var(--dim);
+  letter-spacing: 0.05em;
+  margin-top: 6px;
+}
+
+.edit-box textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: var(--rb);
+  color: var(--fg);
+  font: 16px/1.7 inherit;
+  font-family: inherit;
+  padding: 10px 12px;
+  resize: vertical;
+  min-height: 46px;
+}
+
+.edit-box textarea:focus { outline: none; border-color: var(--val); }
+
+.edit-err {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--warn);
+}
+
+/* 问题在正反面必须完全一致：同字号、同外边距、同盒高。
+   分隔线挂在答案上方而不是问题下方，早期线挂在问题上，
+   多出 34px 让背面的问题字整体上移，翻面瞬间看着就是标题在跳 */
+.q-text {
+  font-size: 21px;
+  line-height: 1.65;
+  margin: 0 0 18px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.face.front > .q-text { margin-bottom: 0; }
+
+.back-q {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 16px;
+}
+
+.answer {
+  font-size: 18px;
+  line-height: 1.7;
+  color: var(--val);
+  margin: 0 0 16px;
+  font-weight: 500;
+}
+
+.detail {
+  font-size: 16px;
+  line-height: 1.8;
+  color: #c2c8d3;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.detail p {
+  margin: 0 0 10px;
+  white-space: pre-wrap;
+}
+
+.detail p:last-child { margin-bottom: 0; }
+
+.code-block {
+  position: relative;
+  margin: 12px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--rb);
+  background: var(--panel2);
+  overflow: hidden;
+}
+
+.code-block pre {
+  margin: 0;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font: 14px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #d6dbe4;
+  white-space: pre;
+}
+
+.code-block code { font: inherit; }
+
+.code-copy {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--btn);
+  color: var(--dim);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: 13px/1.4 inherit;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+.code-copy:hover { color: var(--fg); }
+
+.explain-out {
+  font-size: 16px;
+  line-height: 1.8;
+  color: #d6dbe4;
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border-left: 2px solid var(--val);
+  background: var(--panel2);
+  border-radius: 0 var(--rb) var(--rb) 0;
+  white-space: pre-wrap;
+}
+
+.explain-out.warn {
+  border-left-color: var(--warn);
+  color: var(--warn);
+}
+
+.foot {
+  grid-area: 3 / 1;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: flex-end;
+  /* 长卡片滚到中段时按钮仍贴在视口底部，不用先滚到卡片末尾才能翻页 */
+  position: sticky;
+  bottom: 0;
+  background: var(--panel-solid);
+  z-index: 2;
+  padding-bottom: 8px;
+}
+
+.foot .btn.next {
+  border-color: var(--val);
+  color: var(--val);
+  min-width: 112px;
+}
+
+.foot .btn {
+  min-width: 112px;
+}
+
+/* 背面两个动作分居两端：没记住是失败回忆，下一个是成功回忆，
+   两者都要最容易点到，不能挤在一起误触 */
+.foot.split {
+  justify-content: space-between;
+}
+
+.list-view {
+  background: var(--panel);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  border: 1px solid var(--line);
+  border-radius: var(--rc);
+  padding: 20px 22px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.30);
+}
+
+.list-head {
+  display: flex;
+  align-items: center;
+  color: var(--dim);
+  font-size: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 6px;
+}
+
+.list-head .warn { color: var(--bad); }
+
+.spacer { flex: 1; }
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 4px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.row:last-child { border-bottom: none; }
+
+.row:focus-visible {
+  outline: 2px solid var(--val);
+  outline-offset: -2px;
+}
+.row .rq { flex: 1; font-size: 16px; }
+.row .rt { color: var(--dim); font-size: 14px; white-space: nowrap; }
+.row.marked .rt { color: var(--val); }
+
+.pill {
+  font-size: 13px;
+  padding: 2px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+.pill.due { border-color: var(--accent); color: var(--warn); }
+.pill.ok { border-color: var(--val); color: var(--val); }
+
+/* 行内两个动作共用一套外观，只在行被指着时出现，列表平时保持干净 */
+/* 行内动作平时隐藏，鼠标悬停或键盘焦点进入本行时出现。
+   旧版用 visibility: hidden，隐藏的元素不进 Tab 序列，键盘用户根本到不了
+   编辑与删除。改成 opacity 加 pointer-events：元素仍可获得焦点，
+   一旦聚焦父行触发 :focus-within，按钮就显形 */
+.row-del, .row-edit {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--rb);
+  color: var(--dim);
+  font: 14px/1.5 inherit;
+  padding: 4px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.row:hover .row-del, .row:hover .row-edit,
+.row:focus-within .row-del, .row:focus-within .row-edit {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.row:focus-within { background: var(--btn); }
+.row-del:hover { border-color: var(--bad); color: var(--bad); }
+.row-edit:hover { border-color: var(--val); color: var(--val); }
+
+.recycle-row { cursor: default; }
+.recycle-row .rt { white-space: nowrap; }
+.recycle-search {
+  background: var(--btn);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: var(--rb);
+  padding: 6px 10px;
+  font: 14px/1.5 inherit;
+  width: min(260px, 32vw);
+}
+.recycle-search::placeholder { color: var(--dim); }
+.recycle-stats {
+  color: var(--dim);
+  font-size: 14px;
+  margin: 0 0 8px;
+}
+.recycle-row { flex-wrap: wrap; }
+.recycle-row .rq { flex: 1 1 100%; }
+.recycle-row .rt { flex: 1 1 auto; white-space: normal; }
+.recycle-row .row-restore { margin-left: auto; }
+.row-restore {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--rb);
+  color: var(--fg);
+  font: 14px/1.5 inherit;
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.row-restore:hover { border-color: var(--val); color: var(--val); }
+.row-restore:disabled { opacity: 0.5; cursor: default; }
+.recycle-empty {
+  color: var(--dim);
+  font-size: 15px;
+  line-height: 1.8;
+  padding: 26px 4px;
+}
+
+.add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.add-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.add-row select {
+  background: var(--btn);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: var(--rb);
+  padding: 7px 10px;
+  font: 15px/1.5 inherit;
+}
+
+.add-form textarea {
+  background: var(--btn);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: var(--rb);
+  padding: 10px 12px;
+  font: 16px/1.6 inherit;
+  resize: vertical;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.add-form textarea:focus {
+  outline: 2px solid var(--val);
+  outline-offset: 1px;
+}
+
+.add-view .list-head .btn.next {
+  border-color: var(--val);
+  color: var(--val);
+}
+
+.boot {
+  text-align: center;
+  padding: 46px 24px;
+  background: var(--panel);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  border: 1px solid var(--line);
+  border-radius: var(--rc);
+}
+
+.boot p {
+  color: var(--dim);
+  margin: 0 0 20px;
+  font-size: 16px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: min(560px, calc(100vw - 48px));
+  padding: 10px 16px;
+  background: var(--panel-solid);
+  border: 1px solid var(--warn);
+  border-left: 3px solid var(--warn);
+  border-radius: var(--rb);
+  color: var(--warn);
+  font-size: 14px;
+  line-height: 1.6;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .40);
+  /* 撤销按钮与文字同一行，文字优先占满剩余宽度 */
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toast span { flex: 1; }
+
+.toast-act {
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid var(--warn);
+  border-radius: 6px;
+  color: var(--warn);
+  font: 14px/1.4 inherit;
+  font-family: inherit;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.toast-act:hover { background: rgba(224, 183, 117, 0.12); }
+
+.done { text-align: center; padding: 46px 0; }
+.done h3 { font-size: 19px; margin: 0 0 10px; }
+.done p { color: var(--dim); margin: 0 0 22px; }

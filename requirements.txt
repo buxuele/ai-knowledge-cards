@@ -1,0 +1,10 @@
+# 服务端只用 Python 标准库，无第三方依赖，just_run.sh 不需要装这些。
+# 下面四个是测试脚本与 LLM 拓展用的，要求 Python 3.10 及以上。
+
+# tests/browser_check.py 用它连 CDP 驱动无头 Chrome，缺了验收脚本跑不起来
+websocket-client==1.9.2
+# LLM 拓展与代理调试用
+openai==3.26.0
+httpx==0.28.1
+# httpx 0.28 移除了内置 SOCKS 支持，走 SOCKS 代理要靠它
+socksio==1.0.0
