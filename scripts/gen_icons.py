@@ -114,8 +114,8 @@ def render(sizes):
 
 
 def manifest():
-    icons = [{"src": "/icon-192.png?v=3", "sizes": "192x192", "type": "image/png"},
-             {"src": "/icon-512.png?v=3", "sizes": "512x512", "type": "image/png"}]
+    icons = [{"src": "/icon-192.png?v=4", "sizes": "192x192", "type": "image/png"},
+             {"src": "/icon-512.png?v=4", "sizes": "512x512", "type": "image/png"}]
     doc = {
         "name": "知识点问答卡",
         "short_name": "问答卡",

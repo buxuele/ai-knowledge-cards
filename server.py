@@ -50,6 +50,8 @@ _llm_ready = None
 # 「所有模型都不可用或超时」。模型明明是好的，这句提示会把人带错方向。
 # 闸门满就直接说明在解释另一张卡，不排队也就不饿死。
 _explain_gate = threading.Semaphore(1)
+# 同一张卡重复点解释时直接复用上次结果，默认只留最近 200 条
+_explain_cache = {}
 
 
 def load_env():
@@ -166,11 +168,19 @@ def explain_card(q, a, model=None):
     if not q:
         raise BadBody("缺少问题")
 
+    cache_key = (q, a, model if isinstance(model, str) else "")
+    if cache_key in _explain_cache:
+        return _explain_cache[cache_key]
+
     mod, providers = llm_modules()
     if model and isinstance(model, str):
         # 用户选中的模型排第一，失败时仍按原顺序兜底，避免一次选择把解释打死
         providers = [p for p in providers if p["name"] == model] + \
                     [p for p in providers if p["name"] != model]
+    elif providers:
+        # 自动模式优先走 NIM，实测 1 到 3 秒返回；OpenRouter 免费模型常要 10 秒以上
+        providers = [p for p in providers if p["name"].startswith("nim/")] + \
+                    [p for p in providers if not p["name"].startswith("nim/")]
     if mod is None or not providers:
         return {"ok": False, "reason": "llm 模块加载失败",
                 "fallback": f"{q}\n{a}\n\n请深入解释这个知识点为什么这样设计。"}
@@ -212,8 +222,12 @@ def explain_card(q, a, model=None):
                     last_err = type(e).__name__
                 continue
             if len(text) >= MIN_EXPLAIN:
-                return {"ok": True, "text": _ensure_breaks(text),
-                        "model": p["name"]}
+                result = {"ok": True, "text": _ensure_breaks(text),
+                          "model": p["name"]}
+                _explain_cache[cache_key] = result
+                while len(_explain_cache) > 200:
+                    _explain_cache.pop(next(iter(_explain_cache)))
+                return result
             last_err = "模型返回正文过短"
     finally:
         _explain_gate.release()
