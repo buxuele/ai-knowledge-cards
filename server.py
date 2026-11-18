@@ -246,6 +246,9 @@ def explain_card(q, a, model=None):
 # 关键词里刻意不放「工具」这类泛词。实测加上之后，「AI 工具越强程序员越不能只会描述
 # 需求」会被「工具」抢走归到工具类，而它讲的是协作方法论。
 AI_SUB_RULES = [
+    # 体系总览放最前，讲概念之间的关系。归属按 id 前缀 rel- 判定，
+    # 不参与关键词匹配，避免「记忆」「工具」这类词把关系卡抢走。
+    ("relations", "体系总览", []),
     ("memory", "记忆与上下文",
      ["记忆", "记得", "上下文", "MemGPT", "Mem0", "HippoRAG",
       "遗忘", "巩固", "笔记", "会话", "信息增益"]),
@@ -277,6 +280,8 @@ def sub_of(card):
     """AI 卡归到哪个子类。按问题里关键词首次出现的位置判定。"""
     if card.get("cat") != "ai":
         return ""
+    if (card.get("id") or "").startswith("rel-"):
+        return "relations"
     q = card.get("q") or ""
     best, best_pos = AI_SUB_ORDER[-1], float("inf")
     for sid, _, kws in AI_SUB_RULES:
