@@ -49,6 +49,10 @@ export const S = {
   toast: null,
   theme: localStorage.getItem("theme") || "rock",
   sideOpen: localStorage.getItem("sidebarClosed") !== "1",
+  llmModel: localStorage.getItem("llmModel") || "",
+  llmModels: [],
+  llmLoading: false,
+  llmError: "",
   started: false,
 };
 
@@ -559,13 +563,39 @@ export function toggleSidebar() {
   emit();
 }
 
+export async function loadLlmModels() {
+  S.llmLoading = true;
+  S.llmError = "";
+  emit();
+  try {
+    const d = await api("/api/llm/models");
+    S.llmModels = d.models || [];
+    if (S.llmModel && !S.llmModels.some((m) => m.id === S.llmModel)) {
+      S.llmModel = "";
+      localStorage.removeItem("llmModel");
+    }
+  } catch (e) {
+    S.llmError = `模型列表加载失败：${e.message}`;
+  } finally {
+    S.llmLoading = false;
+    emit();
+  }
+}
+
+export function setLlmModel(id) {
+  S.llmModel = id;
+  if (id) localStorage.setItem("llmModel", id);
+  else localStorage.removeItem("llmModel");
+  emit();
+}
+
 export function setTheme(t) {
   S.theme = t;
   localStorage.setItem("theme", t);
   document.body.dataset.t = t;
   const meta = document.getElementById("themeColorMeta");
   if (meta) {
-    meta.content = { rock: "#1e222b", ink: "#191d26", sand: "#24211d" }[t] || "#1e222b";
+    meta.content = { rock: "#1c1c1e", ink: "#151517", sand: "#211f1b" }[t] || "#1e222b";
   }
   emit();
 }
@@ -666,6 +696,7 @@ export function installTestBridge() {
     showAdd, closeAdd, saveAdd, enterRecycle, exitRecycle, deleteCategory,
     nextCard, toggleMark, startEdit, cancelEdit, saveEdit, flip, setLevel,
     setMode, setMarkedOnly, setListView, clearFilters, gotoPage, openCard,
-    parseRoute, routeOf, resetProgress, toggleSidebar,
+    parseRoute, routeOf, resetProgress, toggleSidebar, loadLlmModels,
+    setLlmModel,
   });
 }

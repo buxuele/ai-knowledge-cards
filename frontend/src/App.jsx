@@ -5,12 +5,13 @@ import {
   openCard, flip, nextCard, removeCard, toggleMark, startEdit, cancelEdit,
   saveEdit, showAdd, closeAdd, saveAdd, deleteCategory, showCategoryMenu,
   closeCategoryMenu, setTheme, setMode, setMarkedOnly, setLevel, toggleSidebar,
+  loadLlmModels, setLlmModel,
   setListView, clearFilters, gotoPage, load, setRecycleQuery, setRecyclePage,
   restoreFromRecycle, clearRecycle, dismissToast, applyFilter, toast, resetProgress,
 } from "./store.js";
 
 const THEMES = [
-  ["rock", "深岩"], ["ink", "墨夜"], ["sand", "暖砂"],
+  ["rock", "深灰"], ["ink", "墨黑"], ["sand", "暖灰"],
 ];
 
 function Sidebar() {
@@ -66,9 +67,8 @@ function Sidebar() {
   );
 }
 
-function TopBar() {
+function TopBar({ onSettings }) {
   useStore();
-  const [themeOpen, setThemeOpen] = useState(false);
   const hidden = S.recycleView || S.adding;
   return (
     <header className="top">
@@ -86,16 +86,9 @@ function TopBar() {
           }}>打乱</button>
           <button className={`icon-btn${S.listView ? " on" : ""}`} id="listBtn" onClick={() => setListView(!S.listView)}>列表</button>
           <button className={`icon-btn${S.markedOnly ? " on" : ""}`} id="markFilterBtn" onClick={setMarkedOnly}>只看收藏</button>
-          <button className="icon-btn" id="themeBtn" onClick={() => setThemeOpen(!themeOpen)}>外观</button>
+          <button className="icon-btn" id="settingsBtn" onClick={onSettings}>设置</button>
         </div>
       </div>
-      {themeOpen && (
-        <div className="theme-panel" id="themePanel">
-          {THEMES.map(([t, label]) => (
-            <button key={t} className="sw" data-t={t} onClick={() => { setTheme(t); setThemeOpen(false); }}>{label}</button>
-          ))}
-        </div>
-      )}
     </header>
   );
 }
@@ -171,7 +164,7 @@ function CardView() {
       const r = await fetch("/api/explain", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ q: c.q, a: c.a }),
+        body: JSON.stringify({ q: c.q, a: c.a, model: S.llmModel || undefined }),
         signal: ctl.signal,
       });
       const d = await r.json();
@@ -421,6 +414,44 @@ function Boot() {
   );
 }
 
+function Settings({ open, onClose }) {
+  useStore();
+  useEffect(() => {
+    if (open) loadLlmModels();
+  }, [open]);
+  if (!open) return null;
+  return (
+    <div className="settings-mask" onClick={onClose}>
+      <section className="settings-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="settings-head">
+          <h2>设置</h2>
+          <button className="btn" id="settingsClose" onClick={onClose}>关闭</button>
+        </div>
+        <h3>外观</h3>
+        <div className="settings-themes">
+          {THEMES.map(([t, label]) => (
+            <button key={t} className={`sw${S.theme === t ? " on" : ""}`} data-t={t}
+              onClick={() => setTheme(t)}>{label}</button>
+          ))}
+        </div>
+        <h3>LLM 模型</h3>
+        {S.llmLoading && <p className="settings-hint">正在读取模型列表。</p>}
+        {!S.llmLoading && S.llmError && <p className="settings-hint warn">{S.llmError}</p>}
+        {!S.llmLoading && !S.llmError && (
+          <select className="settings-select" id="llmModel"
+            value={S.llmModel} onChange={(e) => setLlmModel(e.target.value)}>
+            <option value="">自动按顺序选择</option>
+            {S.llmModels.map((m) => (
+              <option key={m.id} value={m.id}>{m.name}</option>
+            ))}
+          </select>
+        )}
+        <p className="settings-hint">解释按钮优先使用选中的模型，失败后仍会尝试其他已配置模型。</p>
+      </section>
+    </div>
+  );
+}
+
 function CatMenu() {
   useStore();
   if (!S.catMenu) return null;
@@ -446,6 +477,7 @@ function Toast() {
 
 export default function App() {
   useStore();
+  const [settingsOpen, setSettingsOpen] = useState(false);
   useEffect(() => {
     const onPop = () => {
       const r = location.pathname === "/recycle" ? { cat: "recycle", sub: "" } : filteredRoute();
@@ -476,7 +508,7 @@ export default function App() {
     <div className={`shell${S.sideOpen ? "" : " side-collapsed"}`}>
       <Sidebar />
       <div className="body">
-        <TopBar />
+        <TopBar onSettings={() => setSettingsOpen(true)} />
         <main>
           <Boot />
           <CardView />
@@ -486,6 +518,7 @@ export default function App() {
           <DoneEmpty />
           <Toast />
           <CatMenu />
+          <Settings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
         </main>
       </div>
     </div>

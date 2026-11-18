@@ -594,7 +594,7 @@ CASES = [
                 有侧栏新增: !!document.getElementById('addBtn'),
                 有难度: !!document.getElementById('levelSel')};
       })()""",
-     lambda v: not v["下拉还在"] and v["顶栏工具"] == ["打乱", "列表", "只看收藏", "外观"]
+     lambda v: not v["下拉还在"] and v["顶栏工具"] == ["打乱", "列表", "只看收藏", "设置"]
      and v["有侧栏新增"] and not v["有难度"]),
     ("卡背不显示来源", """
       (async () => {
@@ -1231,6 +1231,26 @@ CASES.append(
       })()""",
      lambda v: not v.get("没有可删分类") and v["有菜单"] and v["有删除按钮"]
      and not v["弹了确认"] and v["分类没了"] and v["卡进回收站"]),
+)
+
+CASES.append(
+    ("设置面板可切换外观和模型", """
+      (async () => {
+        document.getElementById('settingsBtn').click();
+        await new Promise(r => setTimeout(r, 500));
+        const panel = document.querySelector('.settings-panel');
+        const 外观按钮 = [...document.querySelectorAll('.settings-themes .sw')].map(b => b.textContent);
+        const 模型框 = document.getElementById('llmModel');
+        const 有面板 = !!panel;
+        const 有外观 = 外观按钮.length === 3;
+        const 有模型 = !!模型框;
+        if (外观按钮.length) document.querySelector('.settings-themes .sw').click();
+        await new Promise(r => setTimeout(r, 150));
+        document.getElementById('settingsClose').click();
+        await new Promise(r => setTimeout(r, 150));
+        return {有面板, 有外观, 外观按钮, 有模型, 面板已关: !document.querySelector('.settings-panel')};
+      })()""",
+     lambda v: v["有面板"] and v["有外观"] and v["有模型"] and v["面板已关"]),
 )
 
 CASES.append(

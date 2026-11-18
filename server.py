@@ -143,7 +143,16 @@ def _ensure_breaks(text):
     return text
 
 
-def explain_card(q, a):
+def llm_model_list():
+    """给设置面板返回可选模型，不返回任何密钥。"""
+    mod, providers = llm_modules()
+    if mod is None:
+        return []
+    return [{"id": p["name"], "name": p["name"], "model": p["model"]}
+            for p in providers]
+
+
+def explain_card(q, a, model=None):
     """按「免费优先、付费兜底」逐个 provider 尝试，全失败就让用户自己拿去问。
 
     全部失败时返回 ok 为 false 与一段现成的问题文本，前端复制到剪贴板。
@@ -158,6 +167,10 @@ def explain_card(q, a):
         raise BadBody("缺少问题")
 
     mod, providers = llm_modules()
+    if model and isinstance(model, str):
+        # 用户选中的模型排第一，失败时仍按原顺序兜底，避免一次选择把解释打死
+        providers = [p for p in providers if p["name"] == model] + \
+                    [p for p in providers if p["name"] != model]
     if mod is None or not providers:
         return {"ok": False, "reason": "llm 模块加载失败",
                 "fallback": f"{q}\n{a}\n\n请深入解释这个知识点为什么这样设计。"}
@@ -1019,6 +1032,9 @@ class Handler(BaseHTTPRequestHandler):
         if p == "/api/progress":
             return self._json({"summary": summary()})
 
+        if p == "/api/llm/models":
+            return self._json({"models": llm_model_list()})
+
         if p == "/api/recycle":
             items = list_archived()
             return self._json({"items": items, "total": len(items)})
@@ -1108,7 +1124,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(edit_card(body.get("id"),
                                         body.get("q"), body.get("a")))
         if path == "/api/explain":
-            return self._json(explain_card(body.get("q"), body.get("a")))
+            return self._json(explain_card(body.get("q"), body.get("a"),
+                                           body.get("model")))
         card_id = self._card_id(body)
         if path == "/api/mark":
             return self.mark(card_id, 1 if body.get("marked") else 0)
